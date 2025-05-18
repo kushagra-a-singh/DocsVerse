@@ -1,0 +1,34 @@
+node_modules/
+backend/venv/
+
+.env
+.env.*
+!*.env.example # Keep .env.example files
+
+.DS_Store
+Thumbs.db
+
+dist/
+build/
+*.log
+
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+.vscode/
+task.pdf
+
+data/uploads/
+data/processed/
+data/vectordb/
+data/*.db # Exclude SQLite databases
+
+.vite/
+*.egg-info/
+
+backend/data/processed/*
+!backend/data/processed/__init__.py
+backend/data/uploads/*
+!backend/data/uploads/__init__.py
+
+backend/models/huggingface/ 
