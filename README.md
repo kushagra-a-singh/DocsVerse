@@ -1,7 +1,10 @@
 # DocsVerse: Document Research & Theme Identification Chatbot
 
 ## Overview
-This project is an interactive web-based application that allows users to upload documents, chat with an AI assistant to extract information from those documents, and identify common themes across the document set. It provides a user interface for managing uploaded documents and viewing chat interactions with relevant citations.
+This project is an interactive web-based application that allows users to upload documents, chat with an AI assistant to extract information from those documents and identify common themes across the document set. It provides a user interface for managing uploaded documents and viewing chat interactions with relevant citations.
+
+![image](https://github.com/user-attachments/assets/34cef2b3-8d2d-43cc-8a14-6682429ff44a)
+
 
 ## Features
 
@@ -11,14 +14,23 @@ This project is an interactive web-based application that allows users to upload
 - **Document Deletion:** Users can delete individual documents.
 - **Knowledge Base Creation:** Uploaded documents are processed and stored to create a knowledge base for the AI assistant.
 
+![image](https://github.com/user-attachments/assets/0a2469ff-0859-4680-9ffd-d48bca34cf82)
+
+
 ### 2. AI Chat and Query Processing
 - **Natural Language Queries:** Users can ask questions about the uploaded documents using natural language.
 - **Contextual Responses:** The AI assistant processes queries against selected documents to provide relevant answers.
 - **Citations:** Responses include citations indicating the source documents.
 
+![image](https://github.com/user-attachments/assets/f6138866-884f-4502-920b-d120085b968e)
+
+
 ### 3. Theme Identification
 - **Theme Analysis:** The application can analyze uploaded documents to identify common themes.
 - **Theme Listing:** Identified themes are listed on a dedicated Themes page.
+
+![image](https://github.com/user-attachments/assets/3882b4b0-40c1-49a1-a813-16f1982610f4)
+
 
 ## Technical Stack
 
@@ -47,7 +59,6 @@ This project is an interactive web-based application that allows users to upload
 1. Clone the repository:
 ```bash
 git clone https://github.com/kushagra-a-singh/DocsVerse.git
-cd DocsVerse/DocsVerse.git
 cd DocsVerse
 ```
 
@@ -111,7 +122,7 @@ Replace `"YOUR_GOOGLE_API_KEY"` with your actual API key.
 cd backend
 .\venv\Scripts\activate #on windows if not already active
 # source venv/bin/activate #on macOS/Linux if not already active
-uvicorn app.main:app --reload
+python -m app.main
 ```
 The backend should start and run on `http://127.0.0.1:8000` by default.
 
