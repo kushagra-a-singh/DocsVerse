@@ -64,7 +64,7 @@ async def analyze_themes(request: ThemeAnalysisRequest):
         document_responses = await llm_service.process_query(query_request, documents)
 
         synthesized_response = await theme_identifier.identify_themes(
-            query=query_request.query, documents=document_responses
+            query=query_request.query, document_responses=document_responses
         )
 
         all_saved_themes = await theme_identifier.list_themes()
@@ -83,7 +83,7 @@ async def analyze_themes(request: ThemeAnalysisRequest):
         return ThemeAnalysisResponse(
             themes=filtered_themes,
             document_count=len(documents),
-            processing_time_ms=100,  
+            processing_time_ms=100,
             analysis_metadata={
                 "query": query_request.query,
                 "min_confidence": request.min_confidence,
@@ -144,7 +144,6 @@ async def update_theme(
         return await theme_identifier.update_theme(
             theme_id=theme_id,
             theme_update=theme_update,
-            
         )
     except ValueError:
         raise HTTPException(
@@ -173,4 +172,3 @@ async def get_theme(theme_id: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting theme: {str(e)}",
         )
-
