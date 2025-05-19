@@ -61,12 +61,35 @@ class DocumentProcessor:
             file_path = os.path.join(self.upload_dir, document.file_path)
             file_extension = os.path.splitext(file_path)[1].lower()
 
+            # For images, we'll mark them as processed directly
+            if file_extension in [".png", ".jpg", ".jpeg"]:
+                logger.info(f"[PROCESS] Detected image file: {file_path}")
+                # Create processed directory if it doesn't exist
+                processed_dir = os.path.abspath(self.processed_dir)
+                os.makedirs(processed_dir, exist_ok=True)
+
+                # Move file to processed directory
+                processed_path = os.path.join(
+                    processed_dir, os.path.basename(file_path)
+                )
+                try:
+                    shutil.move(file_path, processed_path)
+                    logger.info(f"Successfully moved image to {processed_path}")
+
+                    # Update document status to processed
+                    update.status = DocumentStatus.PROCESSED.value
+                    update.page_count = 1  # Images are considered as 1 page
+                    return update
+                except Exception as e:
+                    logger.error(f"Error moving image file: {str(e)}", exc_info=True)
+                    update.status = DocumentStatus.ERROR.value
+                    update.error = f"Failed to process image: {str(e)}"
+                    return update
+
+            # For PDFs, continue with normal processing
             if file_extension == ".pdf":
                 logger.info(f"[PROCESS] Detected PDF file: {file_path}")
                 text, page_count, metadata = await self._process_pdf(file_path)
-            elif file_extension in [".png", ".jpg", ".jpeg"]:
-                logger.info(f"[PROCESS] Detected image file: {file_path}")
-                text, page_count, metadata = await self._process_image(file_path)
             else:
                 logger.error(f"[PROCESS] Unsupported file type: {file_extension}")
                 raise ValueError(f"Unsupported file type: {file_extension}")
@@ -75,7 +98,7 @@ class DocumentProcessor:
                 f"[PROCESS] Text extraction complete for document {document.id}. Length: {len(text)} chars"
             )
             logger.info(f"[PROCESS] Creating chunks for document {document.id}")
-        
+
             metadata = {
                 **metadata,
                 "name": document.name,
@@ -112,14 +135,10 @@ class DocumentProcessor:
 
             os.makedirs(processed_dir_path, exist_ok=True)
 
-            logger.info(
-                f"Attempting to move file from {file_path} to {processed_path}"
-            )
+            logger.info(f"Attempting to move file from {file_path} to {processed_path}")
             try:
                 shutil.move(file_path, processed_path)
-                logger.info(
-                    f"Successfully moved file to {processed_path}"
-                ) 
+                logger.info(f"Successfully moved file to {processed_path}")
             except FileNotFoundError:
                 logger.error(
                     f"File not found during move operation: {file_path}", exc_info=True
@@ -213,7 +232,7 @@ class DocumentProcessor:
 
             text = await self._process_page_with_ocr(file_path)
 
-            return text, 1, metadata 
+            return text, 1, metadata
 
         except Exception as e:
             logger.error(f"Error processing image {file_path}: {str(e)}")
@@ -243,7 +262,7 @@ class DocumentProcessor:
 
         text = ""
         for line in result[0]:
-            if line[1][0]:  
+            if line[1][0]:
                 text += line[1][0] + "\n"
 
         return text
@@ -252,7 +271,7 @@ class DocumentProcessor:
         self, document_id: str, text: str, metadata: Dict[str, Any]
     ) -> List[DocumentChunk]:
         """Split text into chunks for vector storage"""
-    
+
         chunks = self.text_splitter.split_text(text)
 
         doc_chunks = []
@@ -286,4 +305,3 @@ class DocumentProcessor:
             return True
         except Exception as e:
             logger.error(f"Error deleting document {document_id}: {str(e)}")
-

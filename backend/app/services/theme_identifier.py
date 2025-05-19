@@ -21,6 +21,7 @@ from app.models.theme_models import (
 from app.services.document_processor import DocumentProcessor
 from app.services.llm_service import LLMService
 from app.services.vector_store import VectorStore
+from fastapi import Depends
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -39,83 +40,87 @@ class ThemeIdentifier:
         self.document_processor = DocumentProcessor()
 
     async def identify_themes(
-        self, query: str, documents: List["DocumentResponse"]
+        self, query: str, document_responses: List[DocumentQueryResponse]
     ) -> SynthesizedResponse:
-        """Identify themes across documents"""
-        logger.info(f"[THEME] Identifying themes for {len(documents)} documents")
+        """Identify themes across document responses"""
+        logger.info(
+            f"[THEME] Identifying themes for {len(document_responses)} document responses"
+        )
 
         try:
-            #prepare document content for LLM analysis
-            #extract content from each document
-            documents_content = []
-            for doc in documents:
+            # Prepare document response content for LLM analysis
+            # Extract content from each document query response
+            document_content_for_theme_analysis = []
+            for response in document_responses:
                 try:
-                    if doc.status == "PROCESSED":
-                        content_response = (
-                            await self.document_processor.get_document_content(doc.id)
-                        ) 
-                        content = (
-                            content_response.get("content", "")
-                            if isinstance(content_response, dict)
-                            else ""
-                        )
-                        documents_content.append(
+                    # Use extracted_answer from DocumentQueryResponse
+                    content = (
+                        response.extracted_answer if response.extracted_answer else ""
+                    )
+
+                    # Only include responses with actual content for theme analysis
+                    if (
+                        content
+                        and content != "Could not process image"
+                        and not content.startswith("Error processing image")
+                    ):
+                        document_content_for_theme_analysis.append(
                             {
-                                "document_id": doc.id,
-                                "document_name": doc.name,
+                                "document_id": response.document_id,
+                                "document_name": response.document_name,
                                 "content": content,
                             }
                         )
                     else:
                         logger.warning(
-                            f"[THEME] Document {doc.id} not PROCESSED. Skipping theme analysis for this document."
+                            f"[THEME] Skipping theme analysis for document {response.document_id} due to empty or error content."
                         )
                 except Exception as e:
                     logger.error(
-                        f"[THEME] Error getting content for document {doc.id}: {str(e)}",
+                        f"[THEME] Error processing document response for theme analysis {response.document_id}: {str(e)}",
                         exc_info=True,
                     )
 
-            if not documents_content:
+            if not document_content_for_theme_analysis:
                 logger.warning(
-                    "[THEME] No processed document content available for theme identification."
+                    "[THEME] No valid document response content available for theme identification."
                 )
                 return SynthesizedResponse(
                     query=query,
-                    answer="No processed document content available for theme identification.",
+                    answer="No valid document response content available for theme identification.",
                     themes=[],
-                    document_responses=[], 
+                    document_responses=document_responses,  # Return original document responses
                     metadata={
-                        "document_count": len(documents),
+                        "document_count": len(document_responses),
                         "theme_count": 0,
                     },
                 )
 
-            
             themes, synthesized_answer_text = await self._generate_themes_and_answer(
-                query, documents_content
+                query, document_content_for_theme_analysis
             )
 
             if not isinstance(themes, list):
                 logger.error(
                     f"[THEME] _generate_themes_and_answer did not return a list of themes. Returned type: {type(themes)}"
                 )
-                themes = [] 
+                themes = []
 
-            #store themes in database
-            #the themes returned are ThemeIdentification objects.
+            # Store themes in database (assuming _generate_themes_and_answer returns ThemeIdentification objects)
+            # In this flow, we are not saving themes directly after every query with themes.
+            # The ThemeIdentification objects are part of the SynthesizedResponse.
 
-            #fetch the saved themes from the database as ThemeResponse objects
-            saved_themes = await self.list_themes()
+            # Note: The original code seemed to have a step to list/fetch saved themes here, which doesn't fit the immediate response flow.
+            # We will return the themes identified in this query run.
 
             return SynthesizedResponse(
                 query=query,
                 answer=synthesized_answer_text,
-                themes=saved_themes,
-                document_responses=[],
+                themes=themes,  # Return the themes generated in this query
+                document_responses=document_responses,  # Return the original document responses
                 metadata={
-                    "document_count": len(documents),
-                    "theme_count": len(saved_themes),
+                    "document_count": len(document_responses),
+                    "theme_count": len(themes),
                 },
             )
 
@@ -124,23 +129,26 @@ class ThemeIdentifier:
                 f"[THEME] An unexpected error occurred during theme identification: {str(e)}",
                 exc_info=True,
             )
+            # In case of error, still return the original document responses and an error message
             return SynthesizedResponse(
                 query=query,
                 answer=f"An error occurred during theme identification: {str(e)}",
                 themes=[],
-                document_responses=[],
+                document_responses=document_responses,
                 metadata={
-                    "document_count": len(documents),
+                    "document_count": len(document_responses),
                     "theme_count": 0,
                     "error": str(e),
                 },
             )
 
-    async def create_theme(self, theme: ThemeCreate) -> ThemeResponse:
+    async def create_theme(
+        self, theme: ThemeCreate, db: Session = Depends(get_db)
+    ) -> ThemeResponse:
         """Create a new theme"""
-        db = next(get_db())
+        # Note: The Depends(get_db) is for API endpoints. For service internal use, manage session directly.
+        db = next(get_db())  # Get a new session for service internal use
         try:
-            #convert Pydantic model to SQLAlchemy model instance
             db_theme = Theme(
                 id=str(uuid4()),
                 name=theme.name,
@@ -148,44 +156,39 @@ class ThemeIdentifier:
                 keywords=theme.keywords,
                 document_ids=theme.document_ids,
                 confidence_score=theme.confidence_score,
-                created_at=datetime.utcnow(),
-                metadata_=theme.metadata,
+                metadata_=theme.metadata,  # Use metadata_ for SQLAlchemy model
             )
             db.add(db_theme)
             db.commit()
             db.refresh(db_theme)
             return ThemeResponse.from_orm(db_theme)
-
         except Exception as e:
             db.rollback()
             logger.error(f"Error creating theme: {str(e)}")
-            raise e
+            raise
         finally:
             db.close()
 
     async def update_theme(
-        self, theme_id: str, theme_update: ThemeUpdate
+        self, theme_id: str, theme: ThemeUpdate, db: Session = Depends(get_db)
     ) -> Optional[ThemeResponse]:
-        """Update an existing theme"""
-        db = next(get_db())
+        # Note: The Depends(get_db) is for API endpoints. For service internal use, manage session directly.
+        db = next(get_db())  # Get a new session for service internal use
         try:
             db_theme = db.query(Theme).filter(Theme.id == theme_id).first()
-            if not db_theme:
-                return None
+            if db_theme:
+                update_data = theme.model_dump(exclude_unset=True)
+                for key, value in update_data.items():
+                    # Handle metadata_ mapping if needed
+                    if key == "metadata":
+                        setattr(db_theme, "metadata_", value)
+                    else:
+                        setattr(db_theme, key, value)
 
-            for var, value in theme_update.dict(exclude_unset=True).items():
-    
-                if var == "metadata":
-                    setattr(db_theme, "metadata_", value)
-                else:
-                    setattr(db_theme, var, value)
-            db_theme.updated_at = datetime.utcnow()
-
-            db.commit()
-            db.refresh(db_theme)
-    
-            return ThemeResponse.from_orm(db_theme)
-
+                db.commit()
+                db.refresh(db_theme)
+                return ThemeResponse.from_orm(db_theme)
+            return None
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating theme {theme_id}: {str(e)}")
@@ -194,30 +197,29 @@ class ThemeIdentifier:
             db.close()
 
     async def list_themes(self) -> List[ThemeResponse]:
-        """List all themes"""
+        """List all saved themes"""
         db = next(get_db())
         try:
-            #use ORM query to fetch themes
-            themes = db.query(Theme).order_by(Theme.created_at.desc()).all()
-
+            themes = db.query(Theme).all()
             return [ThemeResponse.from_orm(theme) for theme in themes]
-
         except Exception as e:
             logger.error(f"Error listing themes: {str(e)}")
             return []
         finally:
             db.close()
 
-    async def get_theme(self, theme_id: str) -> Optional[ThemeResponse]:
-        """Get theme by ID"""
-        db = next(get_db())
+    async def get_theme(
+        self, theme_id: str, db: Session = Depends(get_db)
+    ) -> Optional[ThemeResponse]:
+        # Note: The Depends(get_db) is for API endpoints. For service internal use, manage session directly.
+        db = next(get_db())  # Get a new session for service internal use
         try:
             theme = db.query(Theme).filter(Theme.id == theme_id).first()
             if theme:
                 return ThemeResponse.from_orm(theme)
             return None
         except Exception as e:
-            logger.error(f"Error getting theme: {str(e)}")
+            logger.error(f"Error getting theme {theme_id}: {str(e)}")
             return None
         finally:
             db.close()
@@ -243,23 +245,24 @@ class ThemeIdentifier:
         self, query: str, documents: List[Dict]
     ) -> tuple[List[ThemeIdentification], str]:
         """Generate themes and synthesized answer using LLM"""
-    
+
         context = ""
-        for i, doc in enumerate(documents):
-            context += f"\nDOCUMENT {i+1}: {doc['document_name']}\n{doc['content']}\n"
+        for i, doc_data in enumerate(documents):
+            # Use the data dictionary directly
+            context += f"\nDOCUMENT {i+1}: {doc_data['document_name']}\n{doc_data['content']}\n"
 
         prompt = f"""
         You are an AI assistant that analyzes multiple documents to identify common themes and synthesize information.
-        
+
         USER QUERY: {query}
-        
+
         DOCUMENT CONTENTS:
         {context}
-        
+
         Based on the documents above, please:
         1. Identify the main themes that appear across multiple documents
         2. Provide a comprehensive answer to the user query that synthesizes information from all documents
-        
+
         Format your response as a JSON object with the following structure:
         {{"themes": [
             {{"theme_name": "Name of theme 1",
@@ -271,7 +274,7 @@ class ThemeIdentifier:
          ],
          "synthesized_answer": "Your comprehensive answer that addresses the query and incorporates the identified themes"
         }}
-        
+
         Identify 3-5 significant themes that appear across multiple documents. For each theme, provide a clear name, description, and list of supporting documents (using the document numbers from 1 to {len(documents)}).
         """
 
@@ -298,14 +301,16 @@ class ThemeIdentifier:
                 for theme_data in response_data.get("themes", []):
 
                     supporting_docs = []
+                    # Map document indices back to document_ids from the input list
                     for idx in theme_data.get("supporting_documents", []):
                         if isinstance(idx, int) and 1 <= idx <= len(documents):
+                            # documents here is the list of dictionaries prepared for the LLM
                             supporting_docs.append(documents[idx - 1]["document_id"])
 
                     theme = ThemeIdentification(
                         theme_name=theme_data["theme_name"],
                         description=theme_data["description"],
-                        supporting_documents=supporting_docs,  
+                        supporting_documents=supporting_docs,
                         confidence_score=theme_data.get("confidence_score", 0.5),
                     )
                     themes.append(theme)
@@ -313,10 +318,12 @@ class ThemeIdentifier:
 
             except json.JSONDecodeError:
                 logger.warning(f"Invalid JSON response from LLM: {response}")
+                # In case of invalid JSON, return empty themes and the raw response as answer
                 return [], response
 
         except Exception as e:
             logger.error(f"Error generating themes: {str(e)}")
+            # In case of error during LLM call, return empty themes and an error message
             return [], f"Error generating themes: {str(e)}"
 
 

@@ -284,6 +284,9 @@ export default function Documents() {
               >
                 <MenuItem value="">All</MenuItem>
                 <MenuItem value="PDF">PDF</MenuItem>
+                <MenuItem value="PNG">PNG</MenuItem>
+                <MenuItem value="JPG">JPG</MenuItem>
+                <MenuItem value="JPEG">JPEG</MenuItem>
               </Select>
             </FormControl>
             <FormControl sx={{ minWidth: 120 }} size="small">

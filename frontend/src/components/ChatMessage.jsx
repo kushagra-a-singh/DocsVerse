@@ -6,21 +6,32 @@ export default function ChatMessage({ message }) {
 
   const hasCitations = message.citations && message.citations.length > 0;
   const hasThemes = message.themes && message.themes.length > 0;
+  const isImageResponse = message.document_type === 'image';
 
   return (
     <div
       className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`max-w-3xl rounded-lg px-4 py-2 ${message.role === 'user'
-          ? 'bg-primary-100 text-primary-900'
-          : message.isError
+        className={`max-w-3xl rounded-lg px-4 py-2 ${
+          message.role === 'user'
+            ? 'bg-primary-100 text-primary-900'
+            : message.isError
             ? 'bg-red-100 text-red-900'
             : 'bg-gray-100 text-gray-900'
-          }`}
+        }`}
       >
         <div className="prose">
-          <div className="whitespace-pre-line">{message.content}</div>
+          {isImageResponse ? (
+            <div className="space-y-2">
+              <div className="font-medium text-sm text-gray-600">
+                Image Analysis:
+              </div>
+              <div className="whitespace-pre-line">{message.content}</div>
+            </div>
+          ) : (
+            <div className="whitespace-pre-line">{message.content}</div>
+          )}
 
           {hasCitations && (
             <div className="mt-2">

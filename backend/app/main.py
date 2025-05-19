@@ -2,9 +2,9 @@ import logging
 import os
 
 import uvicorn
-from app import models 
+from app import models
 from app.config import settings
-from app.database import init_db 
+from app.database import init_db
 from app.models.document import Base
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -101,16 +101,27 @@ verify_database()
 
 def verify_routes(app: FastAPI):
     """Verify all routes are properly registered"""
+    print("Registered routes:")
     for route in app.routes:
-        print(f"{route.path} ({', '.join(route.methods)})")
+        if hasattr(
+            route, "path"
+        ):  # Check if route has path attribute (exclude exceptions handlers etc.)
+            print(f"{route.path} ({', '.join(route.methods)})")
 
 
 if __name__ == "__main__":
+    # from app.services.image_processor import ImageProcessor
+    # import asyncio
+    # processor = ImageProcessor()
+    # test_response = asyncio.run(processor.process_image(
+    #     "D:/Kushagra/Programming/DocsVerse/backend/data/processed/d57f3ef2-3138-4b4d-98a6-a4c70f2ce212.png"
+    # ))
+    # print("BACKEND RESPONSE:", test_response) 
+
     os.makedirs("data", exist_ok=True)
     os.makedirs("data/uploads", exist_ok=True)
     os.makedirs("data/processed", exist_ok=True)
 
-    verify_database()
-    verify_routes(app)
+    verify_routes(app)  
 
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
