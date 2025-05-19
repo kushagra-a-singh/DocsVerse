@@ -179,7 +179,6 @@ The project currently implements the core functionalities of document upload, st
 Potential future improvements include:
 -   **Enhanced Theme Integration:** Fully integrating the theme selection functionality on the chat page to filter or guide conversations.
 -   **More Granular Citations:** Implementing paragraph or sentence-level citations in the chat responses.
--   **OCR Implementation:** Adding support for processing scanned image documents.
 -   **Improved Theme Analysis:** Further refining the theme identification process for more accurate and comprehensive results.
 -   **Visualizations:** Adding visual representations for themes and their connections to documents.
 -   **Deployment:** Setting up deployment on cloud platforms for broader access.
