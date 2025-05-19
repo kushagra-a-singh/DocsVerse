@@ -32,3 +32,4 @@ backend/data/uploads/*
 !backend/data/uploads/__init__.py
 
 backend/models/huggingface/ 
+test_imageAnalysis.py
