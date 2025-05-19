@@ -35,6 +35,8 @@ const DocumentsSidebar = styled(Box)(({ theme }) => ({
   [theme.breakpoints.up('md')]: {
     width: 300, 
     flexShrink: 0,
+    maxHeight: 'calc(100vh - 180px - 48px)',
+    overflowY: 'auto',
   },
 }));
 
@@ -162,8 +164,8 @@ export default function Chat() {
   };
 
   return (
-    <Box sx={{ p: 3 }}> 
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+    <Box sx={{ pt: 0, px: 3 }}>
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={0}>
         <Stack direction="row" spacing={2} alignItems="center">
           {/*
           <Button
@@ -244,6 +246,11 @@ export default function Chat() {
               ) : error ? (
                 <Alert severity="error">Error loading documents: {error.message}</Alert>
               ) : documents && Array.isArray(documents) && documents.length > 0 ? (
+                <Box sx={{
+                    maxHeight: 350,
+                    overflowY: 'auto',
+                    pr: 1
+                }}>
                 <List dense> 
                   {documents.map((document, index) => {
                     const docId = document.id;
@@ -292,6 +299,7 @@ export default function Chat() {
                     );
                   })}
                 </List>
+                </Box>
               ) : (
                 <Typography color="text.secondary" variant="body2">No documents uploaded yet</Typography>
               )}
@@ -299,27 +307,23 @@ export default function Chat() {
           </Card>
           <Card>
             <CardContent>
-              <Typography variant="h6">
-                Selected Documents ({selectedDocuments.length})
-              </Typography>
-              {isLoading ? (
-                <Box display="flex" justifyContent="center" alignItems="center" minHeight={60}>
-                  <CircularProgress />
-                </Box>
-              ) : error ? (
-                <Alert severity="error">Error loading documents: {error.message}</Alert>
-              ) : (
-                <List dense>
-                  {selectedDocuments.length === 0 ? (
-                    <Typography color="text.secondary" variant="body2">Select documents to query</Typography>
-                  ) : (
-                    selectedDocuments.map((document) => (
+              <Typography variant="h6" mb={2}>Selected Documents</Typography>
+              {selectedDocuments.length > 0 ? (
+                <Box sx={{
+                    maxHeight: 224,
+                    overflowY: 'auto',
+                    pr: 1
+                }}>
+                  <List dense>
+                    {selectedDocuments.map((document) => (
                       <ListItem key={document.id} sx={{ mb: 0.5 }}>
                         <ListItemText primary={document.name} primaryTypographyProps={{ variant: 'body2' }} />
                       </ListItem>
-                    ))
-                  )}
-                </List>
+                    ))}
+                  </List>
+                </Box>
+              ) : (
+                <Typography color="text.secondary" variant="body2">Select documents to query</Typography>
               )}
             </CardContent>
           </Card>
